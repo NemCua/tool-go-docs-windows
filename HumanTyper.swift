@@ -32,6 +32,7 @@ struct Config {
     var typoPhraseMinWords = 1
     var typoPhraseMaxWords = 3
     var naturalRhythm = true
+    var showProgressOverlay = true
     var seed: UInt64?
 }
 
@@ -279,6 +280,7 @@ private func loadSettings(into config: inout Config) {
     if let n = json["soTuCumSaiToiThieu"] as? Int { config.typoPhraseMinWords = n }
     if let n = json["soTuCumSaiToiDa"] as? Int { config.typoPhraseMaxWords = n }
     if let n = json["batNhipTuNhien"] as? Bool { config.naturalRhythm = n }
+    if let n = json["hienBangTienDo"] as? Bool { config.showProgressOverlay = n }
     guard config.wpm >= 5, config.wpm <= 1000, config.errorRate >= 0, config.errorRate <= 0.3,
           config.countdown >= 0, config.countdown <= 60, config.historyMinCharacters >= 1,
           config.historyMaxCharacters >= config.historyMinCharacters, config.waitBeforeHistory >= 0,
@@ -386,6 +388,59 @@ private func postKey(code: CGKeyCode) {
     up?.setIntegerValueField(.eventSourceUserData, value: generatedEventMarker)
     down?.post(tap: .cghidEventTap)
     up?.post(tap: .cghidEventTap)
+}
+
+private func postNamedKey(_ name: String) {
+    let normalized = name.uppercased()
+    let codes: [String: CGKeyCode] = [
+        "ENTER": 36, "RETURN": 36, "TAB": 48, "ESC": 53, "ESCAPE": 53,
+        "SPACE": 49, "BACKSPACE": 51, "DELETE": 117, "ARROWUP": 126,
+        "ARROWDOWN": 125, "ARROWLEFT": 123, "ARROWRIGHT": 124
+    ]
+    guard let code = codes[normalized] else { fail("phím vòng lặp không hỗ trợ: \(name)") }
+    postKey(code: code)
+}
+
+private func postKeySequence(_ keys: [String], characterDelay: Double) {
+    for key in keys {
+        if key.uppercased().hasPrefix("WAIT:") {
+            let value = String(key.dropFirst(5))
+            guard let seconds = Double(value), seconds >= 0, seconds <= 60 else {
+                fail("thời gian WAIT không hợp lệ: \(key) (dùng WAIT:0.5)")
+            }
+            pumpEvents(for: seconds)
+            continue
+        }
+        if let separator = key.lastIndex(of: ":"), separator > key.startIndex {
+            let literal = String(key[..<separator])
+            let waitValue = String(key[key.index(after: separator)...])
+            if let seconds = Double(waitValue), seconds >= 0, seconds <= 60 {
+                for character in literal {
+                    postText(String(character))
+                    pumpEvents(for: max(0.012, characterDelay))
+                }
+                pumpEvents(for: seconds)
+                continue
+            }
+        }
+        let components = key.uppercased().split(separator: "+").map(String.init)
+        guard let last = components.last else { fail("phím vòng lặp không hợp lệ: \(key)") }
+        let modifiers = Set(components.dropLast())
+        let modifierFlags: CGEventFlags = [
+            modifiers.contains("CMD") || modifiers.contains("COMMAND") ? .maskCommand : [],
+            modifiers.contains("CTRL") || modifiers.contains("CONTROL") ? .maskControl : [],
+            modifiers.contains("ALT") || modifiers.contains("OPTION") ? .maskAlternate : [],
+            modifiers.contains("SHIFT") ? .maskShift : []
+        ].reduce([], { $0.union($1) })
+        if !modifierFlags.isEmpty {
+            let keyCodes: [String: CGKeyCode] = ["V": 9, "C": 8, "X": 7, "A": 0, "Z": 6, "Y": 16]
+            guard let code = keyCodes[last] else { fail("phím kết hợp không hỗ trợ: \(key)") }
+            postShortcut(code: code, flags: modifierFlags)
+        } else {
+            postNamedKey(last)
+        }
+        pumpEvents(for: 0.08)
+    }
 }
 
 private func postShortcut(code: CGKeyCode, flags: CGEventFlags) {
@@ -550,6 +605,7 @@ enum DocumentPart {
     case table(rows: Int, columns: Int, cells: [String])
     case manualCorrection(wrong: String, correct: String)
     case save
+    case keySequence(keys: [String], repetitions: Int)
 }
 
 // The estimate uses the same configurable waits as the real run. It is
@@ -600,7 +656,7 @@ private struct ProgressEstimatePlan {
 private func expandDirectives(_ parts: [DocumentPart]) -> [DocumentPart] {
     // Directives may be wrapped in Markdown backticks (or escaped backticks)
     // without those wrapper characters being typed into the document.
-    let pattern = #"(?:\\?`)?\[([^,\]\n]+),\s*([^\]\n]+)\](?:\\?`)?|(?:\\?`)?\{save\}(?:\\?`)?"#
+    let pattern = #"(?:\\?`)?\[([^,\]\n]+),\s*([^\]\n]+)\](?:\\?`)?|(?:\\?`)?\{save\}(?:\\?`)?|(?:\\?`)?\{([^{}\n]+)\}\s*(\d+)(?:\\?`)?"#
     let regex = try! NSRegularExpression(pattern: pattern)
     var output: [DocumentPart] = []
     for part in parts {
@@ -615,6 +671,14 @@ private func expandDirectives(_ parts: [DocumentPart]) -> [DocumentPart] {
                let correctRange = Range(match.range(at: 2), in: text) {
                 output.append(.manualCorrection(wrong: String(text[wrongRange]).trimmingCharacters(in: .whitespaces),
                                                 correct: String(text[correctRange]).trimmingCharacters(in: .whitespaces)))
+            } else if match.range(at: 3).location != NSNotFound,
+                      let commandRange = Range(match.range(at: 3), in: text),
+                      let countRange = Range(match.range(at: 4), in: text),
+                      let repetitions = Int(text[countRange]), repetitions > 0, repetitions <= 100_000 {
+                let command = String(text[commandRange]).trimmingCharacters(in: .whitespaces)
+                let keys = command.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+                guard !keys.isEmpty else { fail("lệnh vòng lặp rỗng") }
+                output.append(.keySequence(keys: keys, repetitions: repetitions))
             } else {
                 output.append(.save)
             }
@@ -883,6 +947,7 @@ let textCharacterCount = documentParts.reduce(0) { total, part in
     case .table(_, _, let cells): return total + cells.reduce(0) { $0 + $1.count }
     case .manualCorrection(_, let correct): return total + correct.count
     case .save: return total
+    case .keySequence: return total
     }
 }
 let tableCount = documentParts.reduce(0) { total, part in
@@ -899,6 +964,8 @@ for part in documentParts {
     case .manualCorrection(_, let correct):
         finalText += correct
     case .save:
+        break
+    case .keySequence:
         break
     case .table(let rows, let columns, let cells):
         finalText += cells.joined()
@@ -989,17 +1056,19 @@ guard installSafetyMonitor() != nil else {
     fail("không tạo được bộ dừng an toàn; kiểm tra quyền Accessibility")
 }
 
-NSApplication.shared.setActivationPolicy(.accessory)
-progressOverlay = ProgressOverlay(total: textCharacterCount, estimateRemaining: { typed in
-    progressPlan.remainingSeconds(
-        typed: typed,
-        completedPeriodicSaves: completedPeriodicSaveCount,
-        completedAutomaticCorrections: completedAutomaticCorrectionCount,
-        completedFixedOperations: completedFixedOperationCount,
-        completedTables: completedTableCount
-    )
-})
-progressOverlay?.show(status: config.countdown > 0 ? "Chuẩn bị bắt đầu" : "Đang gõ")
+if config.showProgressOverlay {
+    NSApplication.shared.setActivationPolicy(.accessory)
+    progressOverlay = ProgressOverlay(total: textCharacterCount, estimateRemaining: { typed in
+        progressPlan.remainingSeconds(
+            typed: typed,
+            completedPeriodicSaves: completedPeriodicSaveCount,
+            completedAutomaticCorrections: completedAutomaticCorrectionCount,
+            completedFixedOperations: completedFixedOperationCount,
+            completedTables: completedTableCount
+        )
+    })
+    progressOverlay?.show(status: config.countdown > 0 ? "Chuẩn bị bắt đầu" : "Đang gõ")
+}
 
 if config.countdown > 0 {
     for second in stride(from: config.countdown, through: 1, by: -1) {
@@ -1193,6 +1262,13 @@ documentLoop: for part in documentParts {
         pumpEvents(for: config.waitBeforeHistory)
         if !stopRequested { visitGoogleDocsVersionHistory(viewTime: config.historyViewTime) }
         if !stopRequested { pumpEvents(for: config.waitAfterHistory) }
+        if !stopRequested { completedFixedOperationCount += 1 }
+    case .keySequence(let keys, let repetitions):
+        print("\nĐang lặp phím \(keys.joined(separator: " ")) × \(repetitions)…")
+        progressOverlay?.update(status: "Đang lặp phím", typed: typed, force: true)
+        for _ in 0..<repetitions where !stopRequested {
+            postKeySequence(keys, characterDelay: baseDelay)
+        }
         if !stopRequested { completedFixedOperationCount += 1 }
     case .table(let rows, let columns, let cells):
         print("\nĐang tạo bảng \(rows)x\(columns)…")

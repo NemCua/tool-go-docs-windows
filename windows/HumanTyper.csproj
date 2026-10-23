@@ -5,5 +5,5 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>HumanTyper</AssemblyName>
-+  </PropertyGroup>
+  </PropertyGroup>
 </Project>

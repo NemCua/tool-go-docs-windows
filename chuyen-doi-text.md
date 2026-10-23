@@ -60,7 +60,19 @@ Xây dựng tập từ vựng {save} theo thứ tự chữ cái.
 
 Directive sẽ không được gõ ra tài liệu. Công cụ chờ theo `choTruocLuuGiay`, mở lịch sử trong `xemLuuLichSuGiay`, sau đó chờ `choSauLuuGiay` rồi tiếp tục.
 
-## 5. Công thức LaTex
+## 5. Lặp phím
+
+Muốn mô phỏng thao tác lặp lại, viết chuỗi phím trong ngoặc nhọn và đặt số lần lặp sau ngoặc:
+
+```text
+`{CMD+V WAIT:0.5 ENTER} 100`
+```
+
+Công cụ sẽ gửi `Command + V`, chờ 0,5 giây, nhấn `Enter` rồi lặp cả chuỗi 100 lần. Dùng `WAIT:số-giây` để nghỉ giữa các phím; thời gian hợp lệ từ 0 đến 60 giây. Tách các phím bằng khoảng trắng; dùng `CMD`/`COMMAND`, `CTRL`, `ALT`/`OPTION`, `SHIFT` cho phím kết hợp. Các phím đơn được hỗ trợ: `ENTER`, `TAB`, `ESC`, `SPACE`, `BACKSPACE`, `DELETE`, `ARROWUP`, `ARROWDOWN`, `ARROWLEFT`, `ARROWRIGHT`. Số lần lặp hợp lệ từ 1 đến 100000. Tính năng này hiện dành cho bản macOS.
+
+Để gõ chữ trước khi nghỉ, dùng dạng `chuỗi:số-giây`, ví dụ `` `{hello:0.5 ENTER} 100` `` sẽ gõ `hello`, chờ 0,5 giây, nhấn Enter và lặp 100 lần.
+
+## 6. Công thức LaTex
 
 Đặt công thức inline trong `\(` và `\)`, hoặc công thức khối trong `\[` và `\]`.
 
@@ -87,7 +99,7 @@ Công cụ chuyển một số lệnh phổ biến sang văn bản Unicode:
 
 Không dùng công thức LaTex quá phức tạp, macro tự định nghĩa, ảnh công thức hoặc môi trường như `align`, `matrix`, `cases` nếu cần kết quả chính xác trong Google Docs.
 
-## 6. Checklist trước khi chạy
+## 7. Checklist trước khi chạy
 
 1. Lưu file ở UTF-8, đuôi `.txt`, trong thư mục `input/`.
 2. Kiểm tra `[[TABLE ...]]` có đủ `[[ENDTABLE]]` và đúng số hàng/cột.
@@ -105,10 +117,10 @@ Không dùng công thức LaTex quá phức tạp, macro tự định nghĩa, �
 ./run.sh ten-file
 ```
 
-## 7. Preview trước khi gõ
+## 8. Preview trước khi gõ
 
 Chạy `npm run web`, mở `http://localhost:4173` rồi chọn **Preview tài liệu**. Bấm **Nạp testText.txt**, **Chọn tệp**, hoặc dán trực tiếp nội dung; sau đó bấm **Cập nhật preview** để xem bản mô phỏng dạng trang giấy. Preview dùng cùng quy tắc chuyển đổi với bản macOS: directive, bảng, `\\frac`, `\\boxed`, ký hiệu và chỉ số dưới; đây là kiểm tra trước khi chạy, không thay thế kiểm tra Google Docs thật.
 
-## 8. Bảng tiến độ khi chạy trên macOS
+## 9. Bảng tiến độ khi chạy trên macOS
 
-Khi chạy bình thường, panel kính mờ tối native hiện ở góc phải với trạng thái chữ lớn, thời gian ở hàng riêng, số ký tự, phần trăm, thanh tiến độ và animation đếm ngược. Panel ép giao diện tối để luôn đủ tương phản cả trong macOS Light Mode. Bảng không có nút chuột; dùng phím dừng khẩn cấp nếu cần dừng. Ước tính gồm WPM, nhịp tự nhiên, số lần lưu tự động suy ra từ tổng ký tự và khoảng min/max, lỗi dự kiến theo khoảng lỗi/giới hạn mỗi chu kỳ, từng directive sửa hoặc `{save}`, cùng thời gian tạo bảng. Mỗi lần sửa lỗi được tính một lần lưu; xác suất lưu trước khi sửa chỉ đổi vị trí lần lưu. Ước tính được tính lại khi trạng thái đổi hoặc tối đa mỗi 2 giây, không giảm từng giây. Bảng tự đóng khi hoàn tất và không lấy focus khỏi Google Docs.
+Khi chạy bình thường và `hienBangTienDo` trong `settings.json` là `true`, panel kính mờ tối native hiện ở góc trên-phải với trạng thái chữ lớn, thời gian ở hàng riêng, số ký tự, phần trăm, thanh tiến độ và animation đếm ngược. Đặt `hienBangTienDo` thành `false` để ẩn panel. Panel ép giao diện tối để luôn đủ tương phản cả trong macOS Light Mode. Bảng không có nút chuột; dùng phím dừng khẩn cấp nếu cần dừng. Ước tính gồm WPM, nhịp tự nhiên, số lần lưu tự động suy ra từ tổng ký tự và khoảng min/max, lỗi dự kiến theo khoảng lỗi/giới hạn mỗi chu kỳ, từng directive sửa hoặc `{save}`, cùng thời gian tạo bảng. Mỗi lần sửa lỗi được tính một lần lưu; xác suất lưu trước khi sửa chỉ đổi vị trí lần lưu. Ước tính được tính lại khi trạng thái đổi hoặc tối đa mỗi 2 giây, không giảm từng giây. Bảng tự đóng khi hoàn tất và không lấy focus khỏi Google Docs.
