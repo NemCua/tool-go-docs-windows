@@ -60,6 +60,7 @@ Sửa trực tiếp [settings.json](settings.json). Các khóa dùng tiếng Vi�
 | `xacSuatLoiTelex` | Xác suất dùng lỗi Telex. |
 | `xacSuatLuuTruocKhiSua` | Xác suất lưu trước khi sửa lỗi. |
 | `batNhipTuNhien` | Bật khựng tự nhiên và nghỉ dấu câu. |
+| `hienBangTienDo` | `true` để hiện bảng tiến độ native ở góc trên-phải khi chạy thật; `false` để ẩn. |
 
 ## Cú pháp file input
 
@@ -110,7 +111,7 @@ Mở `http://localhost:4173`. Preview đọc trực tiếp `settings.json`, mô 
 
 ## Bảng tiến độ macOS
 
-Khi chạy thật, panel nền tối ở góc phải hiển thị trạng thái, thời gian còn lại ước tính, thời gian thực đã chạy, số ký tự, phần trăm và thanh tiến độ. Đồng hồ thực bắt đầu từ `00:00` sau countdown, tăng theo thời gian thật và hiện tổng thời gian trong 4 giây sau khi hoàn tất rồi tự đóng.
+Khi chạy thật và `hienBangTienDo` là `true`, panel nền tối ở góc trên-phải hiển thị trạng thái, thời gian còn lại ước tính, thời gian thực đã chạy, số ký tự, phần trăm và thanh tiến độ. Đặt `hienBangTienDo: false` để ẩn panel. Đồng hồ thực bắt đầu từ `00:00` sau countdown, tăng theo thời gian thật và hiện tổng thời gian trong 4 giây sau khi hoàn tất rồi tự đóng.
 
 ## Windows
 

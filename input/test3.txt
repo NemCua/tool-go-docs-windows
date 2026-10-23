@@ -1,0 +1,125 @@
+GIẢI BÀI KIỂM TRA: BoW VÀ MULTINOMIAL NAIVE BAYES (ĐỀ 02)
+Ngôn ngữ học máy tính - DCT123C1
+
+Dữ liệu train:
+E₁ = win win offer (S)
+E₂ = win offer coupon coupon (S)
+E₃ = agenda notes notes (H)
+E₄ = agenda agenda notes (H)
+E₅ = agenda (H)
+
+Câu 1. Biểu diễn túi từ (BoW)
+
+a) V theo thứ tự xuất hiện lần đầu:
+V = (win, offer, coupon, agenda, notes), |V| = 5.
+Tức là t₁ = win, t₂ = offer, t₃ = coupon, t₄ = agenda, t₅ = notes.
+
+b) Bảng BoW:
+[[TABLE 6x7]]
+Email | t₁ win | t₂ offer | t₃ coupon | t₄ agenda | t₅ notes | Tổng lượt từ
+E₁ | 2 | 1 | 0 | 0 | 0 | 3
+E₂ | 1 | 1 | 2 | 0 | 0 | 4
+E₃ | 0 | 0 | 0 | 1 | 2 | 3
+E₄ | 0 | 0 | 0 | 2 | 1 | 3
+E₅ | 0 | 0 | 0 | 1 | 0 | 1
+[[ENDTABLE]]
+
+c) “offer win win” → (2, 1, 0, 0, 0); “win offer win” → (2, 1, 0, 0, 0).
+Hai vector giống hệt nhau, nên BoW không giữ thứ tự từ, chỉ giữ số lượt xuất hiện.
+
+Câu 2. Ước lượng xác suất của MNB
+
+a) N = 5, Nₛ = 2, Nₕ = 3. P(S) = Nₛ/N = 2/5; P(H) = Nₕ/N = 3/5.
+
+b) Bảng số đếm nₜ,ᴄ (S gộp E₁ + E₂; H gộp E₃ + E₄ + E₅):
+[[TABLE 3x7]]
+Lớp | win | offer | coupon | agenda | notes | Tᴄ
+S | 3 | 2 | 2 | 0 | 0 | 7
+H | 0 | 0 | 0 | 4 | 3 | 7
+[[ENDTABLE]]
+
+c) Công thức: θₜ|ᴄ = (nₜ,ᴄ + α) / (Tᴄ + α|V|), α = 1, |V| = 5.
+[[TABLE 3x3]]
+Lớp | Mẫu số có thay số | Giá trị
+S | 7 + 1·5 | 12
+H | 7 + 1·5 | 12
+[[ENDTABLE]]
+
+[[TABLE 3x6]]
+Lớp | win | offer | coupon | agenda | notes
+S | 4/12 = 1/3 | 3/12 = 1/4 | 3/12 = 1/4 | 1/12 | 1/12
+H | 1/12 | 1/12 | 1/12 | 5/12 | 4/12 = 1/3
+[[ENDTABLE]]
+
+θwin|S = (3 + 1)/(7 + 5) = 4/12 = 1/3; θnotes|H = (3 + 1)/(7 + 5) = 4/12 = 1/3.
+
+d) Tổng lớp S: 4/12 + 3/12 + 3/12 + 1/12 + 1/12 = 12/12 = 1.
+Tổng lớp H: 1/12 + 1/12 + 1/12 + 5/12 + 4/12 = 12/12 = 1.
+Mẫu số phải dùng tổng số lượt từ vì θₜ|ᴄ là phân phối xác suất trên từ vựng, đơn vị là lượt từ.
+Nᴄ đếm email (đơn vị khác), nên nếu dùng Nᴄ thì tổng các xác suất sẽ không bằng 1.
+
+Câu 3. Phân loại email mới
+
+Điểm lớp: Qᴄ(x) = P(C) · ∏ θₜ|ᴄˣᵗ.
+[[TABLE 4x6]]
+Email | xwin | xoffer | xcoupon | xagenda | xnotes
+M₁ | 1 | 0 | 0 | 0 | 1
+M₂ | 0 | 0 | 2 | 1 | 0
+M₃ | 0 | 1 | 0 | 1 | 0
+[[ENDTABLE]]
+
+a) M₁ = “win notes”
+Qₛ = (2/5) · (1/3) · (1/12) = 2/180 = 1/90 ≈ 0,01111.
+Qₕ = (3/5) · (1/12) · (1/3) = 3/180 = 1/60 ≈ 0,01667.
+Qₛ < Qₕ ⇒ Ham.
+
+b) M₂ = “coupon coupon agenda” (coupon lặp 2 lần nên θcoupon được bình phương)
+Qₛ = (2/5) · (1/4)² · (1/12) = (2/5) · (1/16) · (1/12) = 2/960 = 1/480 ≈ 0,002083.
+Qₕ = (3/5) · (1/12)² · (5/12) = 15/8640 = 1/576 ≈ 0,001736.
+Qₛ > Qₕ ⇒ Spam.
+
+c) M₃ = “offer today agenda”
+Từ OOV: today (không thuộc V). Cách xử lý: bỏ qua khi lập BoW; vector BoW là (0, 1, 0, 1, 0).
+Qₛ = (2/5) · (1/4) · (1/12) = 2/240 = 1/120 ≈ 0,008333.
+Qₕ = (3/5) · (1/12) · (5/12) = 15/720 = 1/48 ≈ 0,020833.
+Qₛ < Qₕ ⇒ Ham. V và bảng xác suất không đổi: từ OOV bị bỏ qua, không thêm vào V và không fit lại bằng email mới.
+
+[[TABLE 4x5]]
+Email | Qₛ | Qₕ | Qₛ ? Qₕ | Nhãn dự đoán
+M₁ | 1/90 | 1/60 | < | Ham
+M₂ | 1/480 | 1/576 | > | Spam
+M₃ | 1/120 | 1/48 | < | Ham
+[[ENDTABLE]]
+
+Câu 4. Ảnh hưởng của làm trơn, số đếm và OOV
+
+a) Không làm trơn, email “win notes”:
+[[TABLE 3x4]]
+Lớp C | P(win theo C) | P(notes theo C) | Qᴄ
+S | 3/7 | 0/7 = 0 | (2/5) · (3/7) · 0 = 0
+H | 0/7 = 0 | 3/7 | (3/5) · 0 · (3/7) = 0
+[[ENDTABLE]]
+
+Kết luận: Qₛ = Qₕ = 0, hai điểm bằng nhau nên chưa quyết định.
+Vai trò của làm trơn: win vắng trong H và notes vắng trong S, nên mỗi lớp có một từ xác suất 0 và nhân vào làm điểm cả lớp bằng 0. Laplace smoothing đảm bảo mọi từ có xác suất dương; khi đó Qₛ = 1/90 và Qₕ = 1/60 so sánh được, cho kết quả Ham (câu 3a).
+
+b) Thay E₁ bằng “win win win offer” (nhãn S), α = 1:
+[[TABLE 6x2]]
+Đại lượng | Giá trị sau thay đổi
+P(S) | 2/5 (không đổi)
+nwin,S | 3 + 1 = 4
+Tₛ | 4 + 4 = 8
+θwin theo S | (4 + 1)/(8 + 5) = 5/13
+θagenda theo S | (0 + 1)/(8 + 5) = 1/13
+[[ENDTABLE]]
+
+Phép thay số: θwin|S = (4 + 1)/(8 + 1·5) = 5/13; θagenda|S = (0 + 1)/(8 + 1·5) = 1/13.
+Prior và xác suất từ của lớp H không đổi. Prior chỉ phụ thuộc số email theo lớp (vẫn 2 và 3). Xác suất từ của H chỉ tính từ E₃, E₄, E₅ nên không bị ảnh hưởng bởi thay đổi ở E₁.
+
+c) Email “today unknown”: cả hai từ đều OOV nên bị bỏ qua; vector BoW là (0, 0, 0, 0, 0).
+[[TABLE 2x3]]
+Qₛ | Qₕ | Nhãn dự đoán
+2/5 | 3/5 | Ham
+[[ENDTABLE]]
+
+Tích các θ bằng 1 vì mọi số mũ đều bằng 0, nên quyết định chỉ dựa vào prior P(C): P(H) = 3/5 > P(S) = 2/5.

@@ -9,7 +9,8 @@ record Settings(double Wpm = 120, double ErrorRatePercent = 2.5, int CountdownSe
     int HistoryMin = 150, int HistoryMax = 250, int ErrorMin = 40, int ErrorMax = 90,
     double SaveBefore = 5, double SaveView = 5, double SaveAfter = 5,
     int ErrorsMin = 2, int ErrorsMax = 3, int PhraseMin = 1, int PhraseMax = 3,
-    double TelexProbability = .6, double SaveBeforeCorrectionProbability = .5);
+    double TelexProbability = .6, double SaveBeforeCorrectionProbability = .5,
+    bool ShowProgressOverlay = true);
 
 static class Native {
     [DllImport("user32.dll", SetLastError = true)] static extern uint SendInput(uint count, INPUT[] inputs, int size);
@@ -101,10 +102,11 @@ class Program {
         Console.WriteLine($"Ước tính {estimate.TotalSeconds:0.0} giây ({estimate:mm\\:ss}) ở {settings.Wpm:0.#} WPM.");
         if (parsed.DryRun) return;
 
-        using var panel = overlay = new ProgressOverlay(total);
-        for (var second = settings.CountdownSeconds; second > 0; second--) { panel.ShowCountdown(second, estimate); Console.Write($"Bắt đầu sau {second}…\r"); Thread.Sleep(1000); }
+        using var panel = settings.ShowProgressOverlay ? new ProgressOverlay(total) : null;
+        overlay = panel;
+        for (var second = settings.CountdownSeconds; second > 0; second--) { panel?.ShowCountdown(second, estimate); Console.Write($"Bắt đầu sau {second}…\r"); Thread.Sleep(1000); }
         var started = DateTime.Now;
-        panel.Start(estimate);
+        panel?.Start(estimate);
         nextHistory = RandomBetween(settings.HistoryMin, settings.HistoryMax);
         nextError = RandomBetween(settings.ErrorMin, settings.ErrorMax);
         errorsTarget = RandomBetween(settings.ErrorsMin, settings.ErrorsMax);
@@ -118,7 +120,7 @@ class Program {
             }
         }
         var actual = DateTime.Now - started;
-        panel.Finish(typed, total, actual);
+        panel?.Finish(typed, total, actual);
         Console.WriteLine($"\nHoàn tất: đã gõ {typed} ký tự trong {actual.TotalSeconds:0.0} giây.");
         Thread.Sleep(4000);
     }
@@ -265,7 +267,7 @@ class Program {
         bool Flag(string name, bool fallback) => root.TryGetProperty(name, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False ? value.GetBoolean() : fallback;
         return new(Number("tocDoTuMoiPhut",120),Number("tyLeLoiPhanTram",2.5),(int)Number("demNguocGiay",5),Flag("batLoiCoY",true),Flag("batNhipTuNhien",true),Flag("batLuuLichSu",true),
             (int)Number("soKyTuLuuToiThieu",150),(int)Number("soKyTuLuuToiDa",250),(int)Number("khoangKyTuLoiToiThieu",40),(int)Number("khoangKyTuLoiToiDa",90),Number("choTruocLuuGiay",5),Number("xemLuuLichSuGiay",5),Number("choSauLuuGiay",5),
-            (int)Number("soLoiMoiDotToiThieu",2),(int)Number("soLoiMoiDotToiDa",3),(int)Number("soTuCumSaiToiThieu",1),(int)Number("soTuCumSaiToiDa",3),Number("xacSuatLoiTelex",.6),Number("xacSuatLuuTruocKhiSua",.5));
+            (int)Number("soLoiMoiDotToiThieu",2),(int)Number("soLoiMoiDotToiDa",3),(int)Number("soTuCumSaiToiThieu",1),(int)Number("soTuCumSaiToiDa",3),Number("xacSuatLoiTelex",.6),Number("xacSuatLuuTruocKhiSua",.5),Flag("hienBangTienDo",true));
     }
     static void ValidateSettings(Settings value) {
         if (value.Wpm is < 5 or > 1000 || value.CountdownSeconds is < 0 or > 60 || value.ErrorRatePercent is < 0 or > 30 ||
