@@ -1,42 +1,77 @@
+param(
+    [string]$InputFile = "testText",
+    [switch]$Run
+)
+
 $ErrorActionPreference = "Stop"
-$project = "C:\HumanTyper"
-$repo = "https://github.com/NemCua/tool-go-docs-windows.git"
-$branch = "windows"
-$localDotnet = "$env:USERPROFILE\.dotnet"
+$ProgressPreference = "SilentlyContinue"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-if ((Test-Path "$project\.git") -and (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Host "Cập nhật HumanTyper..."
-    git -C $project fetch origin $branch
-    git -C $project checkout $branch
-    git -C $project pull --ff-only origin $branch
-} elseif (Test-Path $project) {
-    Write-Host "Dùng HumanTyper đã có tại C:\HumanTyper."
-} elseif (Get-Command git -ErrorAction SilentlyContinue) {
-    Write-Host "Tải HumanTyper bằng Git..."
-    git clone --branch $branch --single-branch $repo $project
-} else {
-    Write-Host "Không có Git, tải HumanTyper bằng ZIP..."
-    $zip = "$env:TEMP\HumanTyper-windows.zip"
-    $extract = "$env:TEMP\HumanTyper-windows"
-    Remove-Item $zip -Force -ErrorAction SilentlyContinue
-    Remove-Item $extract -Recurse -Force -ErrorAction SilentlyContinue
-    Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/NemCua/tool-go-docs-windows/archive/refs/heads/windows.zip" -OutFile $zip
-    Expand-Archive -Path $zip -DestinationPath $extract -Force
+$base = Join-Path $env:LOCALAPPDATA "HumanTyper"
+$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$release = Join-Path $base ("releases\" + $stamp + "-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+$temporary = Join-Path $env:TEMP ("HumanTyper-" + [guid]::NewGuid().ToString("N"))
+$archive = Join-Path $temporary "source.zip"
+$extract = Join-Path $temporary "source"
+$dotnetHome = Join-Path $env:USERPROFILE ".dotnet"
+
+try {
+    New-Item -ItemType Directory -Path $temporary -Force | Out-Null
+    New-Item -ItemType Directory -Path (Split-Path $release) -Force | Out-Null
+
+    Write-Host "Dang tai ma nguon HumanTyper Windows..."
+    Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/NemCua/tool-go-docs-windows/archive/refs/heads/windows.zip" -OutFile $archive
+    Expand-Archive -Path $archive -DestinationPath $extract -Force
     $source = Get-ChildItem $extract -Directory | Select-Object -First 1
-    Move-Item -Path $source.FullName -Destination $project
-}
+    if (-not $source) { throw "Khong tim thay ma nguon trong file ZIP." }
+    Move-Item -Path $source.FullName -Destination $release
 
-$hasSdk8 = (Get-Command dotnet -ErrorAction SilentlyContinue) -and ((dotnet --list-sdks) -match "^8\.")
-if (-not $hasSdk8) {
-    Write-Host "Cài .NET 8 SDK..."
-    $installer = "$env:TEMP\dotnet-install.ps1"
-    Invoke-WebRequest -UseBasicParsing -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $installer
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Channel 8.0 -Architecture x64 -InstallDir $localDotnet
-    $env:Path = "$localDotnet;$env:Path"
-}
+    $project = Join-Path $release "windows\HumanTyper.csproj"
+    [xml]$projectXml = Get-Content -Raw $project
+    if ($projectXml.Project.PropertyGroup.TargetFramework -ne "net8.0-windows") {
+        throw "File HumanTyper.csproj vua tai khong dung phien ban Windows .NET 8."
+    }
 
-Set-Location $project
-$dotnet = if (Test-Path "$localDotnet\dotnet.exe") { "$localDotnet\dotnet.exe" } else { "dotnet" }
-& $dotnet --version
-& $dotnet run --project windows -- testText --dry-run
-Write-Host "Hoàn tất. Chạy thật: cd C:\HumanTyper; & `"$dotnet`" run --project windows -- testText"
+    $dotnetCommand = Get-Command dotnet -ErrorAction SilentlyContinue
+    $dotnetExe = if ($dotnetCommand) { $dotnetCommand.Source } else { $null }
+    $sdk8 = $false
+    if ($dotnetExe) {
+        $sdk8 = [bool](@(& $dotnetExe --list-sdks) -match '^8\.')
+    }
+    if (-not $sdk8) {
+        Write-Host "Dang cai .NET 8 SDK cho tai khoan hien tai..."
+        $installer = Join-Path $temporary "dotnet-install.ps1"
+        Invoke-WebRequest -UseBasicParsing -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $installer
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Channel 8.0 -Architecture auto -InstallDir $dotnetHome
+        if ($LASTEXITCODE -ne 0) { throw "Cai .NET 8 SDK that bai (exit code $LASTEXITCODE)." }
+        $dotnetExe = Join-Path $dotnetHome "dotnet.exe"
+        if (-not (Test-Path $dotnetExe)) { throw "Khong tim thay dotnet.exe sau khi cai dat." }
+    }
+
+    $env:DOTNET_ROOT = Split-Path $dotnetExe
+    $env:Path = "$env:DOTNET_ROOT;$env:Path"
+    Push-Location $release
+    try {
+        Write-Host "Dang kiem tra va build ban Windows..."
+        & $dotnetExe build $project --nologo
+        if ($LASTEXITCODE -ne 0) { throw "Build that bai (exit code $LASTEXITCODE)." }
+
+        & $dotnetExe run --no-build --project $project -- $InputFile --dry-run
+        if ($LASTEXITCODE -ne 0) { throw "Dry-run that bai (exit code $LASTEXITCODE)." }
+
+        if ($Run) {
+            Read-Host "Mo Google Docs, nhan Enter, roi chuyen sang tai lieu trong 5 giay dem nguoc" | Out-Null
+            & $dotnetExe run --no-build --project $project -- $InputFile
+            if ($LASTEXITCODE -ne 0) { throw "HumanTyper thoat voi ma loi $LASTEXITCODE." }
+        }
+    } finally {
+        Pop-Location
+    }
+
+    Write-Host "Hoan tat. Ma nguon va ban build: $release"
+    if (-not $Run) {
+        Write-Host "Chay that: cd `"$release`"; & `"$dotnetExe`" run --no-build --project windows -- $InputFile"
+    }
+} finally {
+    Remove-Item $temporary -Recurse -Force -ErrorAction SilentlyContinue
+}
