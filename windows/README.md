@@ -9,8 +9,8 @@ Xem checklist đầy đủ về máy cloud, quyền, trình duyệt, Google Docs
 Mở PowerShell tại thư mục gốc dự án:
 
 ```powershell
-dotnet run --project windows -- ten-file
-dotnet run --project windows -- ten-file --dry-run
+.\run.cmd ten-file
+.\run.cmd ten-file --dry-run
 ```
 
 Đặt file UTF-8 trong `input/`. Tên file có thể có hoặc không có `.txt`. Chương trình tìm `settings.json` và `input/` từ thư mục hiện hành hoặc cạnh bản build.

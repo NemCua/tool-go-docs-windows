@@ -70,7 +70,7 @@ try {
 
     Write-Host "Hoan tat. Ma nguon va ban build: $release"
     if (-not $Run) {
-        Write-Host "Chay that: cd `"$release`"; & `"$dotnetExe`" run --no-build --project windows -- $InputFile"
+        Write-Host "Chay that: cd `"$release`"; .\run.cmd $InputFile"
     }
 } finally {
     Remove-Item $temporary -Recurse -Force -ErrorAction SilentlyContinue

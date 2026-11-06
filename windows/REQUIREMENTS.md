@@ -11,8 +11,8 @@
 Chạy từ source cần .NET 8 SDK. Bản publish self-contained không cần cài .NET.
 
 ```powershell
-dotnet run --project windows -- ten-file --dry-run
-dotnet run --project windows -- ten-file
+.\run.cmd ten-file --dry-run
+.\run.cmd ten-file
 ```
 
 File `settings.json` và thư mục `input/` phải ở thư mục gốc dự án (hoặc cạnh bản publish). Input phải UTF-8 và có đuôi `.txt`.
