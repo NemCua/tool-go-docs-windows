@@ -38,7 +38,7 @@ Panel không lấy focus, luôn nổi ở góc trên bên phải. Panel hiện c
 - `SendInput` không điều khiển được ứng dụng chạy quyền Administrator nếu HumanTyper chạy quyền thường. Nên chạy trình duyệt và HumanTyper cùng mức quyền.
 - Panel dùng WinForms và `user32.dll`, không chạy trên macOS/Linux.
 
-Dừng khẩn cấp bằng phím backtick (\` dưới Escape), `Pause/Break`, `Ctrl + Alt + Shift + Escape`, hoặc đưa chuột vào góc trên-trái màn hình chính.
+Dừng khẩn cấp bằng một lần nhấn phím backtick (\` dưới Escape), `Pause/Break`, `Ctrl + Alt + Shift + Escape`, hoặc đưa chuột vào góc trên-trái màn hình chính. Bản Windows bắt phím vật lý này trên toàn desktop, kể cả khi Google Docs đang có focus.
 
 ## Đóng gói
 

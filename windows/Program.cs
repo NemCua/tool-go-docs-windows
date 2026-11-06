@@ -16,6 +16,10 @@ static class Native {
     [DllImport("user32.dll", SetLastError = true)] static extern uint SendInput(uint count, INPUT[] inputs, int size);
     [DllImport("user32.dll")] static extern short GetAsyncKeyState(int key);
     [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT point);
+    [DllImport("user32.dll", SetLastError = true)] static extern IntPtr SetWindowsHookEx(int hookId, KeyboardHook callback, IntPtr module, uint threadId);
+    [DllImport("user32.dll")] static extern bool UnhookWindowsHookEx(IntPtr hook);
+    [DllImport("user32.dll")] static extern IntPtr CallNextHookEx(IntPtr hook, int code, IntPtr message, IntPtr data);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern IntPtr GetModuleHandle(string? moduleName);
     [StructLayout(LayoutKind.Sequential)] struct INPUT { public uint type; public INPUTUNION data; }
     [StructLayout(LayoutKind.Explicit)] struct INPUTUNION {
         [FieldOffset(0)] public KEYBDINPUT keyboard;
@@ -26,11 +30,45 @@ static class Native {
     [StructLayout(LayoutKind.Sequential)] struct MOUSEINPUT { public int dx, dy; public uint mouseData, flags, time; public IntPtr extra; }
     [StructLayout(LayoutKind.Sequential)] struct HARDWAREINPUT { public uint message; public ushort low, high; }
     [StructLayout(LayoutKind.Sequential)] struct POINT { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] struct KBDLLHOOKSTRUCT { public uint virtualKey, scanCode, flags, time; public UIntPtr extra; }
+    delegate IntPtr KeyboardHook(int code, IntPtr message, IntPtr data);
+    static KeyboardHook? stopCallback;
+    static IntPtr stopHook;
+    static bool stopPressed;
     const uint Keyboard = 1, Unicode = 4, KeyUp = 2, ScanCode = 8;
     public const ushort Backspace = 0x08, Tab = 0x09, Enter = 0x0D, Escape = 0x1B, Backtick = 0xC0,
         Control = 0x11, Shift = 0x10, Alt = 0x12, Slash = 0xBF, H = 0x48, T = 0x54, E = 0x45, Up = 0x26;
 
+    public static IDisposable WatchStopKey() {
+        stopPressed = false;
+        stopCallback = HandleStopKey;
+        stopHook = SetWindowsHookEx(13, stopCallback, GetModuleHandle(null), 0);
+        if (stopHook == IntPtr.Zero)
+            Console.Error.WriteLine($"Không thể theo dõi phím ` toàn hệ thống (Win32 {Marshal.GetLastWin32Error()}); dùng Pause/Break hoặc góc màn hình để dừng.");
+        return new StopKeyWatcher();
+    }
+    sealed class StopKeyWatcher : IDisposable {
+        public void Dispose() {
+            if (stopHook != IntPtr.Zero) UnhookWindowsHookEx(stopHook);
+            stopHook = IntPtr.Zero;
+            stopCallback = null;
+        }
+    }
+    static IntPtr HandleStopKey(int code, IntPtr message, IntPtr data) {
+        if (code >= 0 && (message == (IntPtr)0x100 || message == (IntPtr)0x104)) {
+            var key = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(data);
+            // Scan code 0x29 is the physical key below Escape on standard keyboards.
+            // Ignore SendInput events so a typed backtick in the document cannot stop us.
+            if ((key.flags & 0x10) == 0 && (key.scanCode == 0x29 || key.virtualKey == Backtick)) {
+                stopPressed = true;
+                return (IntPtr)1;
+            }
+        }
+        return CallNextHookEx(stopHook, code, message, data);
+    }
     public static bool StopRequested() {
+        Application.DoEvents(); // Dispatch keyboard-hook messages even when the overlay is hidden.
+        if (stopPressed) return true;
         if ((GetAsyncKeyState(Backtick) & 0x8000) != 0) return true;
         if ((GetAsyncKeyState(0x13) & 0x8000) != 0) return true;
         if ((GetAsyncKeyState(Escape) & 0x8000) != 0 && (GetAsyncKeyState(Control) & 0x8000) != 0 &&
@@ -103,6 +141,7 @@ class Program {
         Console.WriteLine($"Ước tính {estimate.TotalSeconds:0.0} giây ({estimate:mm\\:ss}) ở {settings.Wpm:0.#} WPM.");
         if (parsed.DryRun) return;
 
+        using var stopKey = Native.WatchStopKey();
         using var panel = settings.ShowProgressOverlay ? new ProgressOverlay(total) : null;
         overlay = panel;
         for (var second = settings.CountdownSeconds; second > 0; second--) { panel?.ShowCountdown(second, estimate); Console.Write($"Bắt đầu sau {second}…\r"); Sleep(1); }
