@@ -33,6 +33,7 @@ File `settings.json` và thư mục `input/` phải ở thư mục gốc dự á
 
 ## Dừng khẩn cấp
 
+- Phím backtick (\` dưới Escape).
 - `Pause/Break`.
 - `Ctrl + Alt + Shift + Escape`.
 - Đưa chuột vào góc trên-trái màn hình.

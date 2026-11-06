@@ -27,10 +27,11 @@ static class Native {
     [StructLayout(LayoutKind.Sequential)] struct HARDWAREINPUT { public uint message; public ushort low, high; }
     [StructLayout(LayoutKind.Sequential)] struct POINT { public int X, Y; }
     const uint Keyboard = 1, Unicode = 4, KeyUp = 2, ScanCode = 8;
-    public const ushort Backspace = 0x08, Tab = 0x09, Enter = 0x0D, Escape = 0x1B,
+    public const ushort Backspace = 0x08, Tab = 0x09, Enter = 0x0D, Escape = 0x1B, Backtick = 0xC0,
         Control = 0x11, Shift = 0x10, Alt = 0x12, Slash = 0xBF, H = 0x48, T = 0x54, E = 0x45, Up = 0x26;
 
     public static bool StopRequested() {
+        if ((GetAsyncKeyState(Backtick) & 0x8000) != 0) return true;
         if ((GetAsyncKeyState(0x13) & 0x8000) != 0) return true;
         if ((GetAsyncKeyState(Escape) & 0x8000) != 0 && (GetAsyncKeyState(Control) & 0x8000) != 0 &&
             (GetAsyncKeyState(Alt) & 0x8000) != 0 && (GetAsyncKeyState(Shift) & 0x8000) != 0) return true;
@@ -104,7 +105,7 @@ class Program {
 
         using var panel = settings.ShowProgressOverlay ? new ProgressOverlay(total) : null;
         overlay = panel;
-        for (var second = settings.CountdownSeconds; second > 0; second--) { panel?.ShowCountdown(second, estimate); Console.Write($"Bắt đầu sau {second}…\r"); Thread.Sleep(1000); }
+        for (var second = settings.CountdownSeconds; second > 0; second--) { panel?.ShowCountdown(second, estimate); Console.Write($"Bắt đầu sau {second}…\r"); Sleep(1); }
         var started = DateTime.Now;
         panel?.Start(estimate);
         nextHistory = RandomBetween(settings.HistoryMin, settings.HistoryMax);
