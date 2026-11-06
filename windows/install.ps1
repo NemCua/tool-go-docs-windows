@@ -1,5 +1,6 @@
 param(
     [string]$InputFile = "testText",
+    [string]$InstallDir = "$env:LOCALAPPDATA\HumanTyper",
     [switch]$Run
 )
 
@@ -7,13 +8,13 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$base = Join-Path $env:LOCALAPPDATA "HumanTyper"
+$base = $InstallDir
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $release = Join-Path $base ("releases\" + $stamp + "-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
 $temporary = Join-Path $env:TEMP ("HumanTyper-" + [guid]::NewGuid().ToString("N"))
 $archive = Join-Path $temporary "source.zip"
 $extract = Join-Path $temporary "source"
-$dotnetHome = Join-Path $env:USERPROFILE ".dotnet"
+$dotnetHome = Join-Path $base ".dotnet"
 
 try {
     New-Item -ItemType Directory -Path $temporary -Force | Out-Null

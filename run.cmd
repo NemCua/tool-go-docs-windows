@@ -3,10 +3,15 @@ setlocal
 cd /d "%~dp0"
 
 set "DOTNET_EXE=dotnet"
-if exist "%USERPROFILE%\.dotnet\dotnet.exe" (
+if exist "%~dp0..\..\.dotnet\dotnet.exe" (
+    set "DOTNET_EXE=%~dp0..\..\.dotnet\dotnet.exe"
+    set "DOTNET_ROOT=%~dp0..\..\.dotnet"
+)
+if "%DOTNET_EXE%"=="dotnet" if exist "%USERPROFILE%\.dotnet\dotnet.exe" (
     set "DOTNET_EXE=%USERPROFILE%\.dotnet\dotnet.exe"
     set "DOTNET_ROOT=%USERPROFILE%\.dotnet"
-) else (
+)
+if "%DOTNET_EXE%"=="dotnet" (
     where dotnet >nul 2>nul
     if errorlevel 1 (
         echo Khong tim thay .NET SDK. Chay lenh cai dat trong windows\CAI-DAT-MAY-MOI.md truoc.
